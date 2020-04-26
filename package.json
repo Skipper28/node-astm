@@ -1,5 +1,5 @@
 {
-  "name": "node-astm",
+  "name": "astm",
   "version": "0.0.2",
   "description": "Read data from ASTM",
   "main": "index.js",
@@ -8,15 +8,21 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/iShafayet/node-astm.git"
+    "url": "git+https://github.com/Skipper28/node-astm.git"
   },
   "author": "Sayem Shafayet",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/iShafayet/node-astm/issues"
+    "url": "https://github.com/Skipper28/node-astm/issues"
   },
-  "homepage": "https://github.com/iShafayet/node-astm#readme",
+  "homepage": "https://github.com/Skipper/node-astm#readme",
   "dependencies": {
-    "serialport": "^6.0.4"
-  }
+    "serialport": "^6.0.4",
+    "net": "^1.0.2"
+  },
+  "directories": {
+    "example": "examples",
+    "test": "test"
+  },
+  "devDependencies": {}
 }

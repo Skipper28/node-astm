@@ -3,26 +3,26 @@ var EventEmitter = require('events');
 var SerialPort = require('serialport');
 var net        = require('net');
 
-const ACK_BUFFER = new Buffer.alloc(6);
+const ACK_BUFFER = new Buffer([6]);
 const ENQ = 5;
 const STX = 2;
 const ETX = 3;
 const LF = 10;
 const CR = 13;
 const EOT = 4;
-const fooHandler = (data) => { this.__handleData(data) };
 
 
 class DummyReader extends EventEmitter {
 
   constructor() {
     super();
-    const fooHandler = (data) => { this.__handleData(data) };
+  
 
    this.server = null;
   
    let self = this;
    this.data = null;
+   this.emit = null;
  
   }
 
@@ -51,79 +51,90 @@ class DummyReader extends EventEmitter {
   } 
 
 
+
   initiateTCP(portString) {
+
+
+    Object.assign(this, { portString });
+    this.transmission = [];
+    this.statement = null;
     var server = net.createServer();    
     server.on('connection', this.handleConnection);
-    server.listen(9000, function() {    
+    server.listen(portString, function() {    
       console.log('server listening to %j', server.address());  
     });
 
 }
 
  handleConnection(conn) {    
-  var remoteAddress = conn.remoteAddress + ':' + conn.remotePort;  
-  console.log('new client connection from %s', remoteAddress);
+
+  var remotetAddress = conn.remoteAddress + ':' + conn.remotePort;  
+console.log('new client connection from %s', conn.remoteAddress);
   conn.setEncoding('ascii');
   conn.on('data', __handleData);  
   conn.once('close', onConnClose);  
-  conn.on('error', onConnError);
+  conn.on('error', __error);
   function onConnData(d) {  
-    console.log('connection data from %s: %j', remoteAddress, d);  
+    console.log('connection data from %s: %j', conn.remoteAddress, d);  
     conn.write(d.toUpperCase());  
   }
   function onConnClose() {  
-    console.log('connection from %s closed', remoteAddress);  
+    console.log('connection from %s closed', conn.remoteAddress);  
   }
   function onConnError(err) {  
-    console.log('Connection %s error: %s', remoteAddress, err.message);  
+    console.log('Connection %s error: %s', conn.remoteAddress, err.message);  
   }  
 
 
-
-  
-
  function __log(...data) {
     data.unshift('Dummy>');
-    this.emit('log', ...data);
+    conn.emit('log', ...data);
   }
 
  function __error(err) {
-    this.emit('error', err);
+  console.log('Connection %s error: %s', conn.remoteAddress, err.message);  
+
+  conn.emit('error', err);
   }
 
  function __parseError(err) {
-    this.emit('parse-error', err);
+  console.log('Parse-Error: '+err);  
+    conn.emit('parse-error', err);
   }
 
   function __handleOpen() {
     this.__log('opened on', this.portString);
-    this.emit('open');
+    conn.emit('open');
   }
 
  function __handleError(err, prefix = 'error:') {
-    this.__log(prefix, err.message);
-    this.__error(err);
+    conn.__log(prefix, err.message);
+    conn.__error(err);
   }
 
 function __handleData(data) {
+
+  
+
    // let str = data.toString('ascii');
     let str = data.toString('ascii');
-    //console.log("HANDLEDATA: "+data);
-    console.log(str.length);
+    console.log("HANDLEDATA: "+str);
+
     if (str.length === 0) return;
 
     if (str.charCodeAt(0) === ENQ) {
       conn.write(ACK_BUFFER);
 
     } else if (str.charCodeAt(0) === EOT) {
+      console.log("TEST");
       console.log('this.transmission', this.transmission);
-      this.emit('data', this.transmission);
-      this.__log('transmission: \n', this.summarizeTransmission(this.transmission));
+      conn.emit('data', this.transmission);
+      conn.__log('transmission: \n', this.summarizeTransmission(this.transmission));
       this.transmission = [];
 
     } else {
       for (let char of str.split('')) {
-    //   console.log(char, char.charCodeAt(0));
+    console.log(char, char.charCodeAt(0));
 
         if (char.charCodeAt(0) === STX) {
           this.statement = {
@@ -136,28 +147,34 @@ function __handleData(data) {
           console.log(this.statement.hasStarted);
         } else if (char.charCodeAt(0) === ETX) {
           if (!this.statement.hasStarted) {
-            this.__parseError("this.statement ended before it was started.");
+            __parseError("this.statement ended before it was started.");
             return;
           }
           this.statement.hasEnded = true;
+          console.log("StatementHasEnded: "+this.statement.hasEnded);
 
         } else if (char.charCodeAt(0) === LF) {
           if (!this.statement.hasStarted) {
-            this.__parseError("LF before this.statement was started.");
+            __parseError("LF before this.statement was started.");
             return;
           }
           if (!this.statement.hasEnded) {
-            this.__parseError("LF before this.statement was ended.");
+            __parseError("LF before this.statement was ended.");
             return;
           }
+          console.log("PUSH!");
+          conn.write("PUSH");
+          console.log(this.transmission)
           this.transmission.push(this.statement);
-   //       this.port.write(ACK_BUFFER);
+       conn.write(ACK_BUFFER);
+
 
         } else {
-          if (!this.statement.hasStarted) {
-            this.__parseError(`Unkown character received before this.statement was started, ${char}, ${char.charCodeAt()}`);
+          /** 
+          if (this.statement,hasStarted) {
+              __parseError('Unkown character received before this.statement was started, ${char}, ${char.charCodeAt()}');
             return;
-          }
+          }*/
           if (char.charCodeAt(0) !== CR) {
             if (!this.statement.hasEnded) {
               this.statement.dataMessage += char;
